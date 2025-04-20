@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookstore Database</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">B</span>
+      <div>
+        <strong>Bookstore</strong>
+        <small>Database Explorer</small>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+      <button class="nav-btn" data-view="books">Books</button>
+      <button class="nav-btn" data-view="authors">Authors</button>
+      <button class="nav-btn" data-view="publishers">Publishers</button>
+      <button class="nav-btn" data-view="customers">Customers</button>
+      <button class="nav-btn" data-view="orders">Orders</button>
+      <button class="nav-btn" data-view="analytics">Analytics</button>
+    </nav>
+    <div class="sidebar-footer">PostgreSQL · Neon</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <span id="status-pill" class="pill">Connected</span>
+    </header>
+
+    <div id="error-banner" class="error-banner hidden"></div>
+
+    <!-- Dashboard -->
+    <section id="view-dashboard" class="view">
+      <div id="stat-cards" class="stat-grid"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h2>Top books by revenue</h2>
+          <div id="dash-top-books"></div>
+        </div>
+        <div class="card">
+          <h2>Orders by status</h2>
+          <div id="dash-status"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Recent orders</h2>
+        <div id="dash-recent"></div>
+      </div>
+    </section>
+
+    <!-- Books -->
+    <section id="view-books" class="view hidden">
+      <div class="toolbar">
+        <input type="search" id="book-search" placeholder="Search title or ISBN..." />
+        <select id="book-genre"><option value="">All genres</option></select>
+        <button class="btn" id="book-refresh">Refresh</button>
+      </div>
+      <div class="card">
+        <div id="books-table"></div>
+      </div>
+    </section>
+
+    <!-- Authors -->
+    <section id="view-authors" class="view hidden">
+      <div class="toolbar">
+        <input type="search" id="author-search" placeholder="Search author name..." />
+      </div>
+      <div class="card"><div id="authors-table"></div></div>
+    </section>
+
+    <!-- Publishers -->
+    <section id="view-publishers" class="view hidden">
+      <div class="card"><div id="publishers-table"></div></div>
+    </section>
+
+    <!-- Customers -->
+    <section id="view-customers" class="view hidden">
+      <div class="toolbar">
+        <input type="search" id="customer-search" placeholder="Search name, email or city..." />
+      </div>
+      <div class="card"><div id="customers-table"></div></div>
+    </section>
+
+    <!-- Orders -->
+    <section id="view-orders" class="view hidden">
+      <div class="toolbar">
+        <input type="search" id="order-search" placeholder="Search customer or order #..." />
+        <select id="order-status"><option value="">All statuses</option></select>
+      </div>
+      <div class="card"><div id="orders-table"></div></div>
+    </section>
+
+    <!-- Analytics -->
+    <section id="view-analytics" class="view hidden">
+      <div id="analytics-cards" class="stat-grid"></div>
+      <div class="grid-2">
+        <div class="card"><h2>Revenue per month</h2><div id="an-months"></div></div>
+        <div class="card"><h2>Revenue by genre</h2><div id="an-genres"></div></div>
+        <div class="card"><h2>Top books by revenue</h2><div id="an-top-revenue"></div></div>
+        <div class="card"><h2>Top books by copies</h2><div id="an-top-copies"></div></div>
+        <div class="card"><h2>Top customers by spending</h2><div id="an-customers"></div></div>
+        <div class="card"><h2>Publisher performance</h2><div id="an-publishers"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <button class="modal-close" id="modal-close">&times;</button>
+      <h2 id="modal-title"></h2>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
