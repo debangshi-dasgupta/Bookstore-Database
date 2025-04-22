@@ -28,11 +28,14 @@ def load_env(path=None):
 load_env()
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set. Add it to .env or the environment.")
 
 
 def get_conn():
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "DATABASE_URL is not set. Add it to .env locally or to the "
+            "Vercel project environment variables."
+        )
     return psycopg2.connect(DATABASE_URL)
 
 
@@ -386,38 +389,39 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def dispatch(self, route, params):
+        routes = {
+            "dashboard": lambda: dashboard(),
+            "books": lambda: books(params),
+            "books/meta": lambda: books_meta(),
+            "authors": lambda: authors(params),
+            "publishers": lambda: publishers(params),
+            "customers": lambda: customers(params),
+            "customers/orders": lambda: customer_orders(params),
+            "orders": lambda: orders(params),
+            "order-statuses": lambda: order_statuses(),
+            "analytics": lambda: analytics(),
+        }
+        fn = routes.get(route)
+        if fn is None:
+            self.send_json({"error": "Not found", "route": route}, 404)
+            return
+        self.send_json(fn())
+
     def do_GET(self):
         parsed = urlparse(self.path)
-        path = parsed.path
+        path = parsed.path.rstrip("/") or "/"
         params = parse_qs(parsed.query)
 
         try:
-            if path.startswith("/api/"):
-                if path == "/api/dashboard":
-                    self.send_json(dashboard())
-                elif path == "/api/books":
-                    self.send_json(books(params))
-                elif path == "/api/books/meta":
-                    self.send_json(books_meta())
-                elif path == "/api/authors":
-                    self.send_json(authors(params))
-                elif path == "/api/publishers":
-                    self.send_json(publishers(params))
-                elif path == "/api/customers":
-                    self.send_json(customers(params))
-                elif path == "/api/customers/orders":
-                    self.send_json(customer_orders(params))
-                elif path == "/api/orders":
-                    self.send_json(orders(params))
-                elif path == "/api/order-statuses":
-                    self.send_json(order_statuses())
-                elif path == "/api/analytics":
-                    self.send_json(analytics())
-                else:
-                    self.send_json({"error": "Not found"}, 404)
+            if path.startswith("/api"):
+                route = params.get("route", [""])[0].strip("/")
+                if not route and path not in ("/api", "/api/index"):
+                    route = path[len("/api/"):].strip("/")
+                self.dispatch(route, params)
                 return
 
-            if path == "/" or path == "":
+            if path == "/":
                 self.send_file("index.html")
             else:
                 self.send_file(path.lstrip("/"))

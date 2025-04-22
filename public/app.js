@@ -42,7 +42,17 @@ function debounce(fn, delay = 300) {
 }
 
 async function api(path) {
-  const res = await fetch(path);
+  const [rawPath, query = ""] = path.split("?");
+  const route = rawPath.replace(/^\/api\/?/, "");
+  const url = `/api?route=${encodeURIComponent(route)}${query ? "&" + query : ""}`;
+  const res = await fetch(url);
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `The API returned a non-JSON response (HTTP ${res.status}). ` +
+        "Make sure DATABASE_URL is set in the Vercel project environment variables."
+    );
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
