@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -26,6 +27,15 @@ def load_env(path=None):
 
 
 load_env()
+
+
+def get_rag():
+    api_dir = os.path.dirname(os.path.abspath(__file__))
+    if api_dir not in sys.path:
+        sys.path.insert(0, api_dir)
+    import rag
+
+    return rag
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -426,6 +436,42 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.send_file(path.lstrip("/"))
         except Exception as exc:
+            self.send_json({"error": str(exc)}, 500)
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        params = parse_qs(parsed.query)
+        route = params.get("route", [""])[0].strip("/")
+        if not route and path.startswith("/api/"):
+            route = path[len("/api/"):].strip("/")
+
+        try:
+            if route not in ("chat", "assistant"):
+                self.send_json({"error": "Not found", "route": route}, 404)
+                return
+
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > 64 * 1024:
+                self.send_json({"error": "Request body is too large."}, 413)
+                return
+            raw = self.rfile.read(length) if length else b"{}"
+            try:
+                payload = json.loads(raw.decode("utf-8") or "{}")
+            except (ValueError, UnicodeDecodeError):
+                self.send_json({"error": "Invalid JSON body."}, 400)
+                return
+
+            message = payload.get("message", "")
+            history = payload.get("history", [])
+            result = get_rag().answer(message, history)
+            self.send_json(result)
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, 400)
+        except Exception as exc:
+            import traceback
+
+            traceback.print_exc()
             self.send_json({"error": str(exc)}, 500)
 
     def log_message(self, fmt, *args):

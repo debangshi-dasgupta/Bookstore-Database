@@ -2,6 +2,8 @@ const state = {
   view: "dashboard",
   metaLoaded: false,
   statusesLoaded: false,
+  chatHistory: [],
+  chatBusy: false,
   meta: { genres: [], publishers: [] },
 };
 
@@ -287,7 +289,7 @@ async function loadStatuses() {
   const list = await api("/api/order-statuses");
   $("#order-status").innerHTML =
     `<option value="">All statuses</option>` +
-    list.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+    list.map((s) => `<option value="${esc(s.status)}">${esc(s.status)}</option>`).join("");
   state.statusesLoaded = true;
 }
 
@@ -339,6 +341,95 @@ async function loadAnalytics() {
   $("#an-publishers").innerHTML = barList(data.publisher_revenue, "publisher", "revenue");
 }
 
+/* ---------------- AI Assistant ---------------- */
+function appendChat(role, text, sources) {
+  const log = $("#chat-log");
+  const wrap = document.createElement("div");
+  wrap.className = `chat-msg ${role}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble";
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+
+  if (sources && sources.length) {
+    const source = document.createElement("div");
+    source.className = "chat-sources";
+    source.textContent =
+      "Sources: " + Array.from(new Set(sources)).join(", ");
+    wrap.appendChild(source);
+  }
+
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return wrap;
+}
+
+function openAssistant() {
+  showError("");
+  $("#ai-panel").classList.remove("hidden");
+  $("#chat-input").focus();
+}
+
+function closeAssistant() {
+  $("#ai-panel").classList.add("hidden");
+}
+
+async function sendChat(event) {
+  event.preventDefault();
+  const input = $("#chat-input");
+  const message = input.value.trim();
+  if (!message || state.chatBusy) return;
+
+  input.value = "";
+  showError("");
+  appendChat("user", message);
+
+  state.chatBusy = true;
+  $("#chat-send").disabled = true;
+  const thinking = appendChat("assistant", "Thinking…");
+  thinking.classList.add("thinking");
+
+  try {
+    const res = await fetch("/api?route=chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message,
+        history: state.chatHistory,
+      }),
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await res.json()
+      : { error: `The assistant returned a non-JSON response (HTTP ${res.status}).` };
+    if (!res.ok) throw new Error(data.error || "Request failed");
+
+    thinking.remove();
+    appendChat(
+      "assistant",
+      data.answer,
+      (data.sources || []).map((s) => s.heading)
+    );
+
+    state.chatHistory.push(
+      { role: "user", content: message },
+      { role: "assistant", content: data.answer }
+    );
+    if (state.chatHistory.length > 16) {
+      state.chatHistory = state.chatHistory.slice(-16);
+    }
+  } catch (e) {
+    thinking.remove();
+    appendChat("assistant", "Sorry — " + e.message);
+    showError(e.message);
+  } finally {
+    state.chatBusy = false;
+    $("#chat-send").disabled = false;
+    input.focus();
+  }
+}
+
 /* ---------------- Navigation ---------------- */
 const loaders = {
   dashboard: loadDashboard,
@@ -381,10 +472,22 @@ $("#author-search").addEventListener("input", debounce(loadAuthors));
 $("#customer-search").addEventListener("input", debounce(loadCustomers));
 $("#order-search").addEventListener("input", debounce(loadOrders));
 $("#order-status").addEventListener("change", loadOrders);
+$("#chat-form").addEventListener("submit", sendChat);
 
 $("#modal-close").addEventListener("click", () => $("#modal").classList.add("hidden"));
 $("#modal").addEventListener("click", (e) => {
   if (e.target.id === "modal") $("#modal").classList.add("hidden");
+});
+
+$("#ai-fab").addEventListener("click", openAssistant);
+$("#ai-close").addEventListener("click", closeAssistant);
+$("#ai-panel").addEventListener("click", (e) => {
+  if (e.target.id === "ai-panel") closeAssistant();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#ai-panel").classList.contains("hidden")) {
+    closeAssistant();
+  }
 });
 
 switchView("dashboard");
